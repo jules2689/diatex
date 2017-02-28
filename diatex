@@ -1,7 +1,6 @@
 #!/usr/bin/ruby
 # rubocop:disable Metrics/LineLength
 
-require 'calculus'
 require 'octokit'
 require 'digest'
 require 'net/http'
@@ -23,24 +22,58 @@ REGEX = %r{
 
 GITHUB_CLIENT = Octokit::Client.new(access_token: ENV['GITHUB_ACCESS_TOKEN'])
 
-def create_remote_image(client: raise, image_path: raise, remote_path: raise)
-  remote_image_path = "images/md/#{remote_path}.png"
-  url = "#{ENV['GITHUB_PAGES_URL']}/#{remote_image_path}"
+def remote_image_url(etag)
+  remote_image_path = "images/md/#{etag}.png"
+  "#{ENV['GITHUB_PAGES_URL']}/#{remote_image_path}"
+end
 
+def remote_image_exists?(etag)
+  url = remote_image_url(etag)
+  res = Net::HTTP.get_response(URI(url))
+  res.code == '200'
+end
+
+def create_remote_image(client: raise, image_path: raise, etag: raise)
   # Make sure the image doesn't already exist
   # Since we do a hash of the text contents, that can be considered a cache
-  res = Net::HTTP.get_response(URI(url))
-  if res.code == '404'
+  unless remote_image_exists?(etag)
     client.create_contents(
       ENV['GITHUB_REPO'],
-      remote_image_path,
-      "Adding Image #{remote_path}",
+      "images/md/#{etag}.png",
+      "Adding Image #{etag}",
       branch: ENV['GITHUB_BRANCH'],
       file: image_path
     )
   end
 
-  url
+  remote_image_url(etag)
+end
+
+def latex_image(content, etag)
+  escaped_content = content.gsub(' ', '&space;').tr('(', '\(').tr(')', '\)')
+  url = 'https://latex.codecogs.com/gif.latex?' + escaped_content
+  uri = URI(url)
+
+  file = Tempfile.new([etag, '.png'])
+  file.binmode
+  file.write(Net::HTTP.get(uri))
+  file.flush
+  file.path
+end
+
+def diagram_image(content, etag)
+  file = Tempfile.new([etag, '.mmd'])
+  begin
+    # Write contents of the diagram to the mmd file and flush the buffer
+    file.write(content)
+    file.flush
+    # Pipe out to the mermaid program to convert to a diagram image
+    system("mermaid #{file.path} --png --outputDir /tmp")
+    "/tmp/#{File.basename(file)}.png"
+  ensure
+    file.close
+    file.unlink
+  end
 end
 
 def replacement_text(match, content, type)
@@ -48,27 +81,20 @@ def replacement_text(match, content, type)
   etag = Digest::SHA256.hexdigest(content)
   file_path = case type
               when 'latex'
-                Calculus::Expression.new(content).to_png
+                latex_image(content, etag)
               when 'diagram'
-                file = Tempfile.new([etag, '.mmd'])
-                begin
-                  # Write contents of the diagram to the mmd file and flush the buffer
-                  file.write(content)
-                  file.flush
-                  # Pipe out to the mermaid program to convert to a diagram image
-                  system("mermaid #{file.path} --png --outputDir /tmp")
-                  "/tmp/#{File.basename(file)}.png"
-                ensure
-                  file.close
-                  file.unlink
-                end
+                diagram_image(content, etag)
               end
 
-  # Markdown can't render Base64 images, and we can't guarantee paths will exist properly
-  # So upload it to a Git Repo with GH Pages and return the to inject instead
-  url = create_remote_image(client: GITHUB_CLIENT, image_path: file_path, remote_path: etag)
-  # The replacement text will be HTML commented blocks, followed by a markdown image
-  "\n<!---\n#{match.strip}\n--->\n![#{type} image](#{url})\n"
+  begin
+    # Markdown can't render Base64 images, and we can't guarantee paths will exist properly
+    # So upload it to a Git Repo with GH Pages and return the to inject instead
+    url = create_remote_image(client: GITHUB_CLIENT, image_path: file_path, etag: etag)
+    # The replacement text will be HTML commented blocks, followed by a markdown image
+    "\n<!---\n#{match.strip}\n--->\n![#{type} image](#{url})\n"
+  ensure
+    FileUtils.rm_rf(file_path)
+  end
 end
 
 # Read each file as and replace the content specified by the REGEX
