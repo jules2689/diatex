@@ -11,9 +11,9 @@ Diagram syntax can be found [here](https://knsv.github.io/mermaid/)
 Usage
 ---
 
-`bundle install`
-`npm install mermaid --global`
-`bundle exec ./diatex <path_to_folder>`
+- `bundle install`
+- `npm install mermaid --global`
+- `bundle exec ./diatex <path_to_folder>`
 
 OR
 
@@ -29,12 +29,4 @@ Installation
 
 Example
 ---
-
-This markdown file:
-![Markdown File](https://cloud.githubusercontent.com/assets/3074765/23391674/99cb994a-fd44-11e6-863e-7534cc8eeee4.png)
-
-Would be converted over to:
-![Converted Markdown File](https://cloud.githubusercontent.com/assets/3074765/23391666/7f158bce-fd44-11e6-957c-9f4d9c0c393c.png)
-
-Which would render as:
-![Rendered File](https://cloud.githubusercontent.com/assets/3074765/23391659/7018e72e-fd44-11e6-9ccd-82c8e9da1d47.png)
+[This Gist](https://gist.github.com/jules2689/a6c812caac02c5c2956a70ef7e2a29c8) contains a `before.txt`, an `after.txt`, and a `as_markdown.md` file that is rendered from running DiaTeX on it.
