@@ -6,7 +6,7 @@ with `latex` or `diagram`. You can then run this on a pre-commit hook, or after 
 solution.
 
 LaTeX Cheatsheets can be found [here](https://wch.github.io/latexsheet/)
-Diagram syntax: It is a limited diagram and currently only supports `>>` and `<<` for full, non-dotted lines. Source is available [here](https://github.com/hanachin/yuimaru)
+Diagram syntax can be found [here](https://knsv.github.io/mermaid/)
 
 Usage
 ---
