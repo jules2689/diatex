@@ -12,11 +12,12 @@ Usage
 ---
 
 `bundle install`
-`bundle exec diatex <path_to_folder>`
+`npm install mermaid --global`
+`bundle exec ./diatex <path_to_folder>`
 
 OR
 
-Install all gems system wide, then `diatex <path_to_folder>`
+Install all gems system wide, then `./diatex <path_to_folder>`
 
 Installation
 ---

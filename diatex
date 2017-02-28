@@ -2,10 +2,10 @@
 # rubocop:disable Metrics/LineLength
 
 require 'calculus'
-require 'yuimaru'
 require 'octokit'
 require 'digest'
 require 'net/http'
+require 'tempfile'
 
 REGEX = %r{
   ^(?<!<!---)                   # Make sure its not a comment
@@ -17,13 +17,13 @@ REGEX = %r{
     \n
     ```
   )
-  \n
+  \n?
   (?!--->)$                     # Make sure its really not a comment
 }x
 
 GITHUB_CLIENT = Octokit::Client.new(access_token: ENV['GITHUB_ACCESS_TOKEN'])
 
-def create_remote_image(client:, image_path:, remote_path:)
+def create_remote_image(client: raise, image_path: raise, remote_path: raise)
   remote_image_path = "images/md/#{remote_path}.png"
   url = "#{ENV['GITHUB_PAGES_URL']}/#{remote_image_path}"
 
@@ -46,28 +46,29 @@ end
 def replacement_text(match, content, type)
   # The etag can be cosntructed from the hexdigest of the content, this is used for a cache
   etag = Digest::SHA256.hexdigest(content)
-  # Tempfile for use in the diagram below, do this here so we can close the file outside the switch statement
-  file = Tempfile.new([etag, '.png'])
-
-  begin
-    file_path = case type
-                when 'latex'
-                  Calculus::Expression.new(content).to_png
-                when 'diagram'
-                  Yuimaru.sequence(content).save(file.path)
-                  file.path
+  file_path = case type
+              when 'latex'
+                Calculus::Expression.new(content).to_png
+              when 'diagram'
+                file = Tempfile.new([etag, '.mmd'])
+                begin
+                  # Write contents of the diagram to the mmd file and flush the buffer
+                  file.write(content)
+                  file.flush
+                  # Pipe out to the mermaid program to convert to a diagram image
+                  system("mermaid #{file.path} --png --outputDir /tmp")
+                  "/tmp/#{File.basename(file)}.png"
+                ensure
+                  file.close
+                  file.unlink
                 end
+              end
 
-    # Markdown can't render Base64 images, and we can't guarantee paths will exist properly
-    # So upload it to a Git Repo with GH Pages and return the to inject instead
-    url = create_remote_image(client: GITHUB_CLIENT, image_path: file_path, remote_path: etag)
-
-    # The replacement text will be HTML commented blocks, followed by a markdown image
-    "\n<!---\n#{match.strip}\n--->\n![#{type} image](#{url})\n"
-  ensure
-    file.close
-    file.unlink
-  end
+  # Markdown can't render Base64 images, and we can't guarantee paths will exist properly
+  # So upload it to a Git Repo with GH Pages and return the to inject instead
+  url = create_remote_image(client: GITHUB_CLIENT, image_path: file_path, remote_path: etag)
+  # The replacement text will be HTML commented blocks, followed by a markdown image
+  "\n<!---\n#{match.strip}\n--->\n![#{type} image](#{url})\n"
 end
 
 # Read each file as and replace the content specified by the REGEX
@@ -83,7 +84,7 @@ end
 def check_env(*var_names)
   messages = var_names.collect do |var_name|
     "#{var_name} was not set in env" if ENV[var_name].nil?
-  end
+  end.compact
   raise messages.join("\n") unless messages.empty?
 end
 check_env('GITHUB_ACCESS_TOKEN', 'GITHUB_PAGES_URL', 'GITHUB_REPO', 'GITHUB_BRANCH')
