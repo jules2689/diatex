@@ -1,0 +1,88 @@
+#!/usr/bin/ruby
+# rubocop:disable Metrics/LineLength
+
+require 'calculus'
+require 'yuimaru'
+require 'octokit'
+require 'digest'
+require 'net/http'
+
+def check_env(*var_names)
+  messages = var_names.collect do |var_name|
+    "#{var_name} was not set in env" if ENV[var_name].nil?
+  end
+  raise messages.join("\n") unless messages.empty?
+end
+check_env('GITHUB_ACCESS_TOKEN', 'GITHUB_PAGES_URL', 'GITHUB_REPO', 'GITHUB_BRANCH')
+
+REGEX = %r{
+  ^(?<!<!---)                   # Make sure its not a comment
+  \n                            # Match a new line
+  (?<declaration>
+    ```(?<type>latex|diagram)   # Match the content of latex or diagram
+    \n
+    (.|\n)*?                    # Non-greedy match all and new line, for actual declaration
+    \n
+    ```
+  )
+  \n
+  (?!--->)$                     # Make sure its really not a comment
+}x
+
+GITHUB_CLIENT = Octokit::Client.new(access_token: ENV['GITHUB_ACCESS_TOKEN'])
+
+def create_remote_image(client:, image_path:, remote_path:)
+  remote_image_path = "images/md/#{remote_path}.png"
+  url = "#{ENV['GITHUB_PAGES_URL']}/#{remote_image_path}"
+
+  # Make sure the image doesn't already exist
+  # Since we do a hash of the text contents, that can be considered a cache
+  res = Net::HTTP.get_response(URI(url))
+  if res.code == '404'
+    client.create_contents(
+      ENV['GITHUB_REPO'],
+      remote_image_path,
+      "Adding Image #{remote_path}",
+      branch: ENV['GITHUB_BRANCH'],
+      file: image_path
+    )
+  end
+
+  url
+end
+
+def replacement_text(match, content, type)
+  etag = Digest::SHA256.hexdigest(content) # The etag can be cosntructed from the hexdigest of the content, this is used for a cache
+  file = Tempfile.new([etag, '.png']) # Tempfile for use in the diagram below, do this here so we can close the file outside the switch
+
+  begin
+    file_path = case type
+                when 'latex'
+                  Calculus::Expression.new(content).to_png
+                when 'diagram'
+                  Yuimaru.sequence(content).save(file.path)
+                  file.path
+                end
+
+    url = create_remote_image(client: GITHUB_CLIENT, image_path: file_path, remote_path: etag)
+    "\n<!---\n#{match.strip}\n--->\n![#{type} image](#{url})\n"
+  ensure
+    file.close
+    file.unlink
+  end
+end
+
+def parse_file(file)
+  File.read(file).gsub(REGEX) do |match|
+    r = Regexp.last_match
+    content = match.gsub(/```\S*/, '').strip # Remove the backticks and new lines
+    replacement_text(match, content, r['type'].downcase)
+  end
+end
+
+Dir["#{ARGV[0]}/**/*.md"].each do |file|
+  printf file
+  new_content = parse_file(file)
+  File.write(file, new_content)
+  printf " >>> Done\n"
+end
