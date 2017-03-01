@@ -61,7 +61,10 @@ def replacement_text(match, content, type)
         end
   raise 'Error from upstream' if url.nil? || url == ''
   # The replacement text will be HTML commented blocks, followed by a markdown image
-  "\n<!---\n#{match.strip.gsub('-->', '-\->')}\n--->\n![#{type} image](#{url})\n"
+  [
+    "\n<!---\n#{match.strip.gsub('-->', '-\->')}\n--->\n",
+    "<img src='#{url}' alt='#{type} image' height='75px'>\n"
+  ].join
 end
 
 # Read each file as and replace the content specified by the REGEX
