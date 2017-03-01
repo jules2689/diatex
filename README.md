@@ -14,9 +14,7 @@ Usage
 ---
 
 - Add the environment variable (`DIATEX_PASSWORD`) for the DIATEX service
-- [Generate an SSH key](https://help.github.com/articles/connecting-to-github-with-ssh/) that is *not* named `id_rsa`
-  - Circle requires the private key so do *not* use your main SSH key. I opened a new Github account and added it as a collaborator so I could limit access to the key's usage. 
-- Add an SSH key for checkout to the Circle Repo (https://circleci.com/gh/USERNAME/REPO/edit#checkout)
+- Add a [write-able deploy key for Circle](https://circleci.com/docs/1.0/adding-read-write-deployment-key/)
 - Add a `circle.yml` file to your repo with these contents:
 ```yaml
 checkout:
