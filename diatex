@@ -5,7 +5,6 @@ require 'digest'
 require 'net/http'
 require 'cgi'
 require 'json'
-require 'byebug'
 
 REGEX = %r{
   ^(?<!<!---)                   # Make sure its not a comment
