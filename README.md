@@ -5,6 +5,8 @@ Just like using code blocks in Github Flavoured Markdown, you would do the same 
 with `latex` or `diagram`. You can then run this on a pre-commit hook, or after commit using a continuous integration
 solution.
 
+This hits a service I run on my [personal website](https://github.com/jules2689/website/blob/master/app/controllers/diatex_controller.rb).
+
 - LaTeX Cheatsheets can be found [here](https://wch.github.io/latexsheet/)
 - Diagram syntax can be found [here](https://knsv.github.io/mermaid/)
 
