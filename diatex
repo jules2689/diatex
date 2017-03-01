@@ -21,7 +21,8 @@ REGEX = %r{
 def latex_image_url(content)
   # Weird encodings happen if we don't escape
   # The Server also expects this escaped
-  body = { latex: CGI.escape(content) }
+  content = content.strip.gsub(/\\\[/, '').gsub(/\\\]/, '') # Strip of surrounding \[ \]
+  body = { latex: CGI.escape(content.strip) }
   uri = URI('https://jnadeau.ca/diatex/latex')
   fetch_response(uri, body)
 end
