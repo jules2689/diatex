@@ -11,21 +11,26 @@ solution.
 Usage
 ---
 
-- `bundle install`
-- `npm install mermaid --global`
-- `bundle exec ./diatex <path_to_folder>`
+- Add the environment variable (`DIATEX_PASSWORD`) for the DIATEX service
+- Add a `circle.yml` file to your repo with these contents:
+```yaml
+checkout:
+  post:
+    - git submodule sync
+    - git submodule update --init # use submodules
 
-OR
+test:
+  override:
+    - ruby ./diatex/diatex ../
+    - git config --global user.email "julian+bot@jnadeau.ca" && git config --global user.name "Julian Bot"
+    - git status
+    - git add --all .
+    - git commit -m 'Convert latex and diagram to images [ci skip]' || true
+    - git push origin master || true
+```
+- Add a submodule to your repo `git submodule add https://github.com/jules2689/diatex`
 
-Install all gems system wide, then `./diatex <path_to_folder>`
-
-Installation
----
-
-1. Run `bin/setup` (on a Mac), otherwise make sure LaTeX and dvipng are installed.
-2. Add 'GITHUB_ACCESS_TOKEN', 'GITHUB_PAGES_URL', 'GITHUB_REPO', 'GITHUB_BRANCH' variables
-   These variables are used to upload images via the API to a Github Repo with Github pages enabled.
-   This is where we host the images created during the conversion of a markdown file
+Done!
 
 Example
 ---
