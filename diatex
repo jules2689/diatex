@@ -1,10 +1,11 @@
 #!/usr/bin/ruby
 # rubocop:disable Metrics/LineLength
 
-require 'octokit'
 require 'digest'
 require 'net/http'
-require 'tempfile'
+require 'cgi'
+require 'json'
+require 'byebug'
 
 REGEX = %r{
   ^(?<!<!---)                   # Make sure its not a comment
@@ -20,81 +21,46 @@ REGEX = %r{
   (?!--->)$                     # Make sure its really not a comment
 }x
 
-GITHUB_CLIENT = Octokit::Client.new(access_token: ENV['GITHUB_ACCESS_TOKEN'])
-
-def remote_image_url(etag)
-  remote_image_path = "images/md/#{etag}.png"
-  "#{ENV['GITHUB_PAGES_URL']}/#{remote_image_path}"
+def latex_image_url(content)
+  body = { tex: CGI.escape(content) }
+  uri = URI('http://jnadeau.ca/diatex/latex')
+  fetch_response(uri, body)
 end
 
-def remote_image_exists?(etag)
-  url = remote_image_url(etag)
-  res = Net::HTTP.get_response(URI(url))
-  res.code == '200'
+def diagram_image_url(content)
+  body = { diagram: content }
+  uri = URI('http://jnadeau.ca/diatex/diagram')
+  fetch_response(uri, body)
 end
 
-def create_remote_image(client: raise, image_path: raise, etag: raise)
-  # Make sure the image doesn't already exist
-  # Since we do a hash of the text contents, that can be considered a cache
-  unless remote_image_exists?(etag)
-    client.create_contents(
-      ENV['GITHUB_REPO'],
-      "images/md/#{etag}.png",
-      "Adding Image #{etag}",
-      branch: ENV['GITHUB_BRANCH'],
-      file: image_path
-    )
-  end
+def fetch_response(uri, body)
+  http = Net::HTTP.new(uri.host, 443)
+  http.use_ssl = true
+  request = Net::HTTP::Get.new(uri.request_uri)
+  request.basic_auth('diatex', ENV['DIATEX_PASSWORD'])
+  request.body = body.to_json
+  response = http.request(request)
 
-  remote_image_url(etag)
-end
-
-def latex_image(content, etag)
-  escaped_content = content.gsub(' ', '&space;').tr('(', '\(').tr(')', '\)')
-  url = 'https://latex.codecogs.com/gif.latex?' + escaped_content
-  uri = URI(url)
-
-  file = Tempfile.new([etag, '.png'])
-  file.binmode
-  file.write(Net::HTTP.get(uri))
-  file.flush
-  file.path
-end
-
-def diagram_image(content, etag)
-  file = Tempfile.new([etag, '.mmd'])
-  begin
-    # Write contents of the diagram to the mmd file and flush the buffer
-    file.write(content)
-    file.flush
-    # Pipe out to the mermaid program to convert to a diagram image
-    system("mermaid #{file.path} --png --outputDir /tmp")
-    "/tmp/#{File.basename(file)}.png"
-  ensure
-    file.close
-    file.unlink
+  # Parse the response
+  parsed = JSON.parse(response.body)
+  if parsed['error']
+    puts parsed['error']
+    return nil
+  else
+    parsed['url']
   end
 end
 
 def replacement_text(match, content, type)
-  # The etag can be cosntructed from the hexdigest of the content, this is used for a cache
-  etag = Digest::SHA256.hexdigest(content)
-  file_path = case type
-              when 'latex'
-                latex_image(content, etag)
-              when 'diagram'
-                diagram_image(content, etag)
-              end
-
-  begin
-    # Markdown can't render Base64 images, and we can't guarantee paths will exist properly
-    # So upload it to a Git Repo with GH Pages and return the to inject instead
-    url = create_remote_image(client: GITHUB_CLIENT, image_path: file_path, etag: etag)
-    # The replacement text will be HTML commented blocks, followed by a markdown image
-    "\n<!---\n#{match.strip}\n--->\n![#{type} image](#{url})\n"
-  ensure
-    FileUtils.rm_rf(file_path)
-  end
+  url = case type
+        when 'latex'
+          latex_image_url(content)
+        when 'diagram'
+          diagram_image_url(content)
+        end
+  raise 'Error from upstream' if url.nil? || url == ''
+  # The replacement text will be HTML commented blocks, followed by a markdown image
+  "\n<!---\n#{match.strip}\n--->\n![#{type} image](#{url})\n"
 end
 
 # Read each file as and replace the content specified by the REGEX
@@ -106,15 +72,8 @@ def parse_file(file)
   end
 end
 
-# Make sure the environment is setup properly
-def check_env(*var_names)
-  messages = var_names.collect do |var_name|
-    "#{var_name} was not set in env" if ENV[var_name].nil?
-  end.compact
-  raise messages.join("\n") unless messages.empty?
-end
-check_env('GITHUB_ACCESS_TOKEN', 'GITHUB_PAGES_URL', 'GITHUB_REPO', 'GITHUB_BRANCH')
-
+# Make sure env is setup
+raise 'Did not provide DIATEX_PASSWORD env var' if ENV['DIATEX_PASSWORD'].nil?
 # Make sure directory is provide and exists as a directory
 raise 'Did not provide a path as an argument' if ARGV[0].nil?
 raise "Path #{ARGV[0]} did not exist as a directory" if !File.exist?(ARGV[0]) || !File.directory?(ARGV[0])
