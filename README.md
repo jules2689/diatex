@@ -19,8 +19,8 @@ Usage
 ```yaml
 checkout:
   post:
-    - git submodule update --recursive --remote
-    - git submodule update --init # use submodules
+    - git submodule sync
+    - git submodule update --init --recursive --remote # use submodules
 
 test:
   override:
