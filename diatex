@@ -7,8 +7,7 @@ require 'cgi'
 require 'json'
 
 REGEX = %r{
-  ^(?<!<!---)                   # Make sure its not a comment
-  \n                            # Match a new line
+  ^(?<!<!---\n)                   # Make sure its not a comment
   (?<declaration>
     ```(?<type>latex|diagram)   # Match the content of latex or diagram
     \n
@@ -16,8 +15,7 @@ REGEX = %r{
     \n
     ```
   )
-  \n?
-  (?!--->)$                     # Make sure its really not a comment
+  (?!\n?--->)$                     # Make sure its really not a comment
 }x
 
 def latex_image_url(content)
