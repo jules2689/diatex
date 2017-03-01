@@ -22,21 +22,23 @@ REGEX = %r{
 }x
 
 def latex_image_url(content)
-  body = { tex: CGI.escape(content) }
-  uri = URI('http://jnadeau.ca/diatex/latex')
+  # Weird encodings happen if we don't escape
+  # The Server also expects this escaped
+  body = { latex: CGI.escape(content) }
+  uri = URI('https://jnadeau.ca/diatex/latex')
   fetch_response(uri, body)
 end
 
 def diagram_image_url(content)
   body = { diagram: content }
-  uri = URI('http://jnadeau.ca/diatex/diagram')
+  uri = URI('https://jnadeau.ca/diatex/diagram')
   fetch_response(uri, body)
 end
 
 def fetch_response(uri, body)
-  http = Net::HTTP.new(uri.host, 443)
+  http = Net::HTTP.new(uri.host, uri.port)
   http.use_ssl = true
-  request = Net::HTTP::Get.new(uri.request_uri)
+  request = Net::HTTP::Get.new(uri.request_uri, 'Content-Type' => 'application/json')
   request.basic_auth('diatex', ENV['DIATEX_PASSWORD'])
   request.body = body.to_json
   response = http.request(request)
@@ -45,6 +47,7 @@ def fetch_response(uri, body)
   parsed = JSON.parse(response.body)
   if parsed['error']
     puts parsed['error']
+    puts parsed['output']
     return nil
   else
     parsed['url']
