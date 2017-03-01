@@ -19,7 +19,7 @@ Usage
 ```yaml
 checkout:
   post:
-    - git submodule sync
+    - git submodule update --recursive --remote
     - git submodule update --init # use submodules
 
 test:
