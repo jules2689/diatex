@@ -28,7 +28,7 @@ test:
     - git config --global user.email "julian+bot@jnadeau.ca" && git config --global user.name "Julian Bot"
     - git status
     - git add --all .
-    - git commit -m 'Convert latex and diagram to images [ci skip]' || true
+    - git commit -m "Convert latex and diagram for '$(git log -1 --pretty=%B)' [ci skip]" || true
     - git push origin master || true
 ```
 - Add a submodule to your repo `git submodule add https://github.com/jules2689/diatex`
