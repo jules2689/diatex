@@ -23,7 +23,7 @@ checkout:
 
 test:
   override:
-    - ruby ./diatex/diatex ../
+    - ruby ./diatex/diatex ./
     - git config --global user.email "julian+bot@jnadeau.ca" && git config --global user.name "Julian Bot"
     - git status
     - git add --all .
