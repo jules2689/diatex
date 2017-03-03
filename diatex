@@ -52,32 +52,39 @@ def fetch_response(uri, body)
   end
 end
 
-def replacement_text(match, content, type)
-  url = case type
-        when 'latex'
-          latex_image_url(content)
-        when 'diagram'
-          diagram_image_url(content)
-        end
-  raise 'Error from upstream' if url.nil? || url == ''
+def replacement_text(match, content, type, local: false)
+  url = nil
+  height = "75px"
+
+  case type
+  when 'latex'
+    url = latex_image_url(content) unless local
+    height = "75px"
+  when 'diagram'
+    url = diagram_image_url(content) unless local
+    height = "250px"
+  end
+  raise 'Error from upstream' if !local && (url.nil? || url == '')
+
   # The replacement text will be HTML commented blocks, followed by a markdown image
   [
     "\n<!---\n#{match.strip.gsub('-->', '-\->')}\n--->\n",
-    "<img src='#{url}' alt='#{type} image' height='75px'>\n"
+    "<img src='#{url}' alt='#{type} image' height='#{height}'>\n"
   ].join
 end
 
 # Read each file as and replace the content specified by the REGEX
-def parse_file(file)
+def parse_file(file, local: false)
   File.read(file).gsub(REGEX) do |match|
+    puts match
     r = Regexp.last_match
     content = match.gsub(/```\S*/, '').strip # Remove the backticks and new lines
-    replacement_text(match, content, r['type'].downcase)
+    replacement_text(match, content, r['type'].downcase, local: local)
   end
 end
 
 # Make sure env is setup
-raise 'Did not provide DIATEX_PASSWORD env var' if ENV['DIATEX_PASSWORD'].nil?
+raise 'Did not provide DIATEX_PASSWORD env var' if ENV['DIATEX_PASSWORD'].nil? && ARGV[1] != 'local'
 # Make sure directory is provide and exists as a directory
 raise 'Did not provide a path as an argument' if ARGV[0].nil?
 raise "Path #{ARGV[0]} did not exist as a directory" if !File.exist?(ARGV[0]) || !File.directory?(ARGV[0])
@@ -85,7 +92,7 @@ raise "Path #{ARGV[0]} did not exist as a directory" if !File.exist?(ARGV[0]) ||
 # Parse all markdown files in specified directory
 Dir["#{ARGV[0]}/**/*.md"].each do |file|
   printf file
-  new_content = parse_file(file)
+  new_content = parse_file(file, local: ARGV[1] == 'local')
   File.write(file, new_content)
   printf " >>> Done\n"
 end
