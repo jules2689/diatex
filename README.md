@@ -9,6 +9,7 @@ This hits a service I run on my [personal website](https://github.com/jules2689/
 
 - LaTeX Cheatsheets can be found [here](https://wch.github.io/latexsheet/)
 - Diagram syntax can be found [here](https://knsv.github.io/mermaid/)
+- This [Diagram Live Editor](https://knsv.github.io/mermaid/live_editor/) can be used to help you build a diagram
 
 Usage
 ---

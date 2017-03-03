@@ -76,7 +76,6 @@ end
 # Read each file as and replace the content specified by the REGEX
 def parse_file(file, local: false)
   File.read(file).gsub(REGEX) do |match|
-    puts match
     r = Regexp.last_match
     content = match.gsub(/```\S*/, '').strip # Remove the backticks and new lines
     replacement_text(match, content, r['type'].downcase, local: local)
