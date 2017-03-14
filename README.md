@@ -21,7 +21,7 @@ Usage
 checkout:
   post:
     - git submodule sync
-    - git submodule update --init # use submodules
+    - git submodule update --init --recursive --remote # use submodules
 
 test:
   override:
