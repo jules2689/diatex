@@ -1,0 +1,25 @@
+# If you don't have dev, just run `brew install Caskroom/cask/basictex`, and
+# all the 'meet' blocks.
+
+up:
+  - homebrew:
+      - "Caskroom/cask/basictex"
+  - custom:
+      name: 'install mermaid'
+      met?: "which mermaid >/dev/null"
+      meet: "npm install -g mermaid"
+  - custom:
+      name: 'check $PATH'
+      met?: "echo $PATH | grep -q /usr/local/texlive/2016basic/bin/x86_64-darwin"
+      meet: 'echo "you must add /usr/local/texlive/2016basic/bin/x86_64-darwin/ to your $PATH'
+  - custom:
+      name: 'install dvipng'
+      met?: 'which dvipng >/dev/null'
+      meet: |
+        sudo tlmgr update --self
+        sudo tlmgr install dvipng
+  - ruby: 2.3.3
+  - bundler
+
+commands:
+  test: bin/testunit

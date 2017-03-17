@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/bin/bash
 
 brew cask install basictex
 sudo tlmgr update --self
