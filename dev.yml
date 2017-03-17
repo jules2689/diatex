@@ -18,3 +18,8 @@ up:
       meet: |
         sudo tlmgr update --self
         sudo tlmgr install dvipng
+  - ruby: 2.3.3
+  - bundler
+
+commands:
+  test: bin/testunit
