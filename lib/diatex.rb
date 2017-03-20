@@ -7,7 +7,7 @@ module Diatex
   REGEX = /
     ^(?<!<!---\n)                 # Make sure it's not a comment
     (?<declaration>
-      ```(?<type>latex|diagram)   # Match the content of latex or diagram
+      ```(?<type>latex|diagram|mermaid)   # Match the content of latex or diagram
       \n
       (.|\n)*?                    # Non-greedy match all and new line, for actual declaration
       \n
@@ -90,7 +90,7 @@ module Diatex
       when 'latex'
         url = latex_image_url(content) unless local
         height = "75px"
-      when 'diagram'
+      when 'diagram', 'mermaid'
         url = diagram_image_url(content) unless local
         height = "250px"
       end
