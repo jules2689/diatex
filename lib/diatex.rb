@@ -48,24 +48,28 @@ module Diatex
 
     private
 
+    def url
+      ENV['DEVELOPMENT'] ? 'http://localhost:3000' : 'https://jnadeau.ca'
+    end
+
     def latex_image_url(content)
       # Weird encodings happen if we don't escape
       # The Server also expects this escaped
       content = content.strip.gsub(/\\\[/, '').gsub(/\\\]/, '') # Strip of surrounding \[ \]
       body = { latex: CGI.escape(content.strip) }
-      uri = URI('https://jnadeau.ca/diatex/latex')
+      uri = URI("#{url}/diatex/latex")
       fetch_response(uri, body)
     end
 
     def diagram_image_url(content)
       body = { diagram: content }
-      uri = URI('https://jnadeau.ca/diatex/diagram')
+      uri = URI("#{url}/diatex/diagram")
       fetch_response(uri, body)
     end
 
     def fetch_response(uri, body)
       http = Net::HTTP.new(uri.host, uri.port)
-      http.use_ssl = true
+      http.use_ssl = uri.port == 443
       request = Net::HTTP::Get.new(uri.request_uri, 'Content-Type' => 'application/json')
       request.basic_auth('diatex', ENV['DIATEX_PASSWORD'])
       request.body = body.to_json
@@ -84,7 +88,8 @@ module Diatex
 
     def replacement_text(match, content, type, local: false)
       url = nil
-      height = "75px"
+      height = nil
+      width = nil
 
       case type
       when 'latex'
@@ -92,14 +97,18 @@ module Diatex
         height = "75px"
       when 'diagram', 'mermaid'
         url = diagram_image_url(content) unless local
-        height = "250px"
+        width = "100%"
       end
       raise 'Error from upstream' if !local && (url.nil? || url == '')
 
       # The replacement text will be HTML commented blocks, followed by a markdown image
+      image_modifiers = {
+        height: height,
+        width: width
+      }.map { |k, v| "#{k}='#{v}'" if v }.compact.join(' ')
       [
         "\n<!---\n#{match.strip.gsub('-->', '-\->')}\n--->\n",
-        "<img src='#{url}' alt='#{type} image' height='#{height}'>\n"
+        "<img src='#{url}' alt='#{type} image' #{image_modifiers}>\n"
       ].join
     end
   end
