@@ -16,6 +16,7 @@ module Diatex
     (?!\n?--->)$                  # Make sure it's really not a comment
   /x
 
+  IGNORED_DIRS = %w(jekyll)
   module CLI
     def self.run(*argv)
       # Make sure env is setup
@@ -23,11 +24,11 @@ module Diatex
       # Make sure directory is provide and exists as a directory
       # raise 'Did not provide a path as an argument' if argv[0].nil?
       # raise "Path #{argv[0]} did not exist as a directory" if !File.exist?(argv[0]) || !File.directory?(argv[0])
-      blacklist = %w(jekyll)
       # Parse all markdown files in specified directory
-      files = Dir["#{argv[0]}/**/*.md"].reject { |file| blacklist.any?{ |folder| file.start_with?(folder) } }
-      files.each do |file|
+
+      Dir["#{argv[0]}/**/*.md"].each do |file|
         print(file)
+        next if IGNORED_DIRS.any? { |folder| File.dirname(file).include?(folder) }
         old_content = File.read(file)
         new_content = Diatex.process(old_content, local: argv[1] == 'local')
         File.write(file, new_content)
