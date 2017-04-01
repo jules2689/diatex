@@ -1,5 +1,6 @@
 require 'minitest/autorun'
 require 'mocha'
+require 'byebug'
 
 path = File.expand_path('../../lib', __FILE__)
 $LOAD_PATH.unshift(path) unless $LOAD_PATH.include?(path)
