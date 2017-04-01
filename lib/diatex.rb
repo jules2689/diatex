@@ -3,6 +3,8 @@ require 'net/http'
 require 'cgi'
 require 'json'
 
+require 'byebug'
+
 module Diatex
   REGEX = /
     ^(?<!<!---\n)                 # Make sure it's not a comment
@@ -27,8 +29,8 @@ module Diatex
       # Parse all markdown files in specified directory
 
       Dir["#{argv[0]}/**/*.md"].each do |file|
-        print(file)
         next if IGNORED_DIRS.any? { |folder| File.dirname(file).include?(folder) }
+        print(file)
         old_content = File.read(file)
         new_content = Diatex.process(old_content, local: argv[1] == 'local')
         File.write(file, new_content)
@@ -81,7 +83,8 @@ module Diatex
     def diagram_image_url(content)
       body = { diagram: content }
       uri = URI("#{url}/diagram")
-      fetch_response(uri, body)
+      response = fetch_response(uri, body)
+      File.join(image_base_path, response) if response
     end
 
     def fetch_response(uri, body)

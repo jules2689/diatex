@@ -10,8 +10,8 @@ require 'webmock/minitest'
 require 'vcr'
 
 VCR.configure do |config|
-  config.cassette_library_dir = "test/fixtures/vcr_cassettes"
   config.hook_into :webmock
+  config.cassette_library_dir = "test/fixtures/vcr_cassettes"
 end
 
 require 'diatex'
