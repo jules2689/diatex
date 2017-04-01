@@ -3,8 +3,6 @@ require 'net/http'
 require 'cgi'
 require 'json'
 
-require 'byebug'
-
 module Diatex
   REGEX = /
     ^(?<!<!---\n)                 # Make sure it's not a comment
