@@ -49,7 +49,21 @@ module Diatex
     private
 
     def url
-      ENV['DEVELOPMENT'] ? 'http://localhost:3000' : 'https://jnadeau.ca'
+      if ENV['DIATEX_URL']
+        ENV['DIATEX_URL']
+      elsif ENV['DEVELOPMENT']
+        'http://localhost:3000'
+      else
+        'https://jnadeau.ca/diatex'
+      end
+    end
+
+    def git_cdn_repo
+      ENV.fetch("DIATEX_CDN_REPO", "jules2689/gitcdn")
+    end
+
+    def image_base_path
+      ENV.fetch("DIATEX_IMAGE_BASE_PATH", "http://gitcdn.jnadeau.ca")
     end
 
     def latex_image_url(content)
@@ -57,23 +71,30 @@ module Diatex
       # The Server also expects this escaped
       content = content.strip.gsub(/\\\[/, '').gsub(/\\\]/, '') # Strip of surrounding \[ \]
       body = { latex: CGI.escape(content.strip) }
-      uri = URI("#{url}/diatex/latex")
-      fetch_response(uri, body)
+      uri = URI("#{url}/latex")
+      response = fetch_response(uri, body)
+      File.join(image_base_path, response) if response
     end
 
     def diagram_image_url(content)
       body = { diagram: content }
-      uri = URI("#{url}/diatex/diagram")
+      uri = URI("#{url}/diagram")
       fetch_response(uri, body)
     end
 
     def fetch_response(uri, body)
       http = Net::HTTP.new(uri.host, uri.port)
       http.use_ssl = uri.port == 443
-      request = Net::HTTP::Get.new(uri.request_uri, 'Content-Type' => 'application/json')
+      request = Net::HTTP::Post.new(uri.request_uri, 'Content-Type' => 'application/json')
       request.basic_auth('diatex', ENV['DIATEX_PASSWORD'])
-      request.body = body.to_json
+      body["github_repo"] = git_cdn_repo if body["github_repo"].nil?
+      request.form_data = body
       response = http.request(request)
+
+      unless response.code == "200"
+        puts "server responded with status code #{response.code}: #{response.body}"
+        return nil
+      end
 
       # Parse the response
       parsed = JSON.parse(response.body)
