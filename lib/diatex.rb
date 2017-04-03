@@ -51,13 +51,8 @@ module Diatex
     private
 
     def url
-      if ENV['DIATEX_URL']
-        ENV['DIATEX_URL']
-      elsif ENV['DEVELOPMENT']
-        'http://localhost:3000'
-      else
-        'https://jnadeau.ca/diatex'
-      end
+      return 'http://localhost:3000' if ENV['DEVELOPMENT']
+      ENV.fetch('DIATEX_URL' ,'https://jnadeau.ca/diatex')
     end
 
     def git_cdn_repo
