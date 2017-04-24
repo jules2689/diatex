@@ -114,7 +114,20 @@ module Diatex
     end
 
     def github
-      @github ||= Octokit::Client.new(access_token: CONFIG[:github_token]) 
+      @github ||= Octokit::Client.new(bearer_token: github_token) 
+    end
+
+    def github_token
+      private_pem = CONFIG[:github_token]
+      private_key = OpenSSL::PKey::RSA.new(private_pem)
+
+      payload = {}.tap do |opts|
+        opts[:iat] = Time.now.to_i           # Issued at time.
+        opts[:exp] = opts[:iat] + 600        # JWT expiration time is 10 minutes from issued time.
+        opts[:iss] = test_github_integration # Integration's GitHub identifier.
+      end
+
+      JWT.encode(payload, private_key, 'RS256')
     end
   end
 end
