@@ -81,15 +81,18 @@ module Diatex
 
     def diagram_image_url(content)
       svg_string = nil
-      Tempfile.open do |file|
-        x = Charts.render_chart(content, file.path + ".svg")
+      file = Tempfile.new('svg_string')
+      begin
+        Charts.render_chart(content, file.path + ".svg")
         svg_string = File.read(file.path + ".svg")
+      ensure
+         file.close
+         file.unlink   # deletes the temp file
       end
 
-      puts svg_string
-
       url = nil
-      Tempfile.open do |file|
+      file = Tempfile.new('svg_string')
+      begin
         img = Magick::Image.from_blob(svg_string) do
           self.format = 'SVG'
           self.background_color = 'transparent'
@@ -99,8 +102,10 @@ module Diatex
         end
         File.write(file.path + ".png", image)
         url = upload_image(file.path + ".png")
+      ensure
+         file.close
+         file.unlink   # deletes the temp file
       end
-
       url
     end
 
