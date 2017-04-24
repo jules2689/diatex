@@ -4,6 +4,7 @@
 up:
   - homebrew:
       - "Caskroom/cask/basictex"
+      - imagemagick@6
   - custom:
       name: 'install mermaid'
       met?: "which mermaid >/dev/null"

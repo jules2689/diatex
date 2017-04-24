@@ -2,25 +2,33 @@ require 'digest'
 require 'net/http'
 require 'cgi'
 require 'json'
+require 'charts'
+require "RMagick"
 
 module Diatex
   REGEX = /
-    ^(?<!<!---\n)                 # Make sure it's not a comment
+    ^(?<!<!---\n)                         # Make sure it's not a comment
     (?<declaration>
       ```(?<type>latex|diagram|mermaid)   # Match the content of latex or diagram
       \n
-      (.|\n)*?                    # Non-greedy match all and new line, for actual declaration
+      (.|\n)*?                            # Non-greedy match all and new line, for actual declaration
       \n
       ```
     )
-    (?!\n?--->)$                  # Make sure it's really not a comment
+    (?!\n?--->)$                          # Make sure it's really not a comment
   /x
+
+  CONFIG = {
+    github_token: ENV['GITHUB_ACCESS_TOKEN'],
+    github_repo: ENV['GITHUB_REPO'],
+    git_repo_url: ENV['GIT_REPO_URL']
+  }.freeze
 
   module CLI
     def self.run(*argv)
       # Make sure env is setup
-      raise 'Did not provide DIATEX_PASSWORD env var' if ENV['DIATEX_PASSWORD'].nil? && argv[1] != 'local'
-      # Make sure directory is provide and exists as a directory
+      nil_keys = CONFIG.keys.select { |k| CONFIG[k].nil? }
+      raise "#{nil_keys.join(',')} are not set as env vars" unless nil_keys.empty?
       raise 'Did not provide a path as an argument' if argv[0].nil?
       raise "Path #{argv[0]} did not exist as a directory" if !File.exist?(argv[0]) || !File.directory?(argv[0])
 
@@ -28,7 +36,7 @@ module Diatex
       Dir["#{argv[0]}/**/*.md"].each do |file|
         print(file)
         old_content = File.read(file)
-        new_content = Diatex.process(old_content, local: argv[1] == 'local')
+        new_content = Diatex.process(old_content)
         File.write(file, new_content)
         print(" >>> Done\n")
       end
@@ -37,66 +45,27 @@ module Diatex
 
   class << self
     # Read each file as and replace the content specified by the REGEX
-    def process(contents, local: false)
+    def process(contents)
       contents.gsub(REGEX) do |match|
         r = Regexp.last_match
         # Remove the backticks and new lines
         content = match.gsub(/```\S*/, '').strip
-        replacement_text(match, content, r['type'].downcase, local: local)
+        replacement_text(match, content, r['type'].downcase)
       end
     end
 
     private
 
-    def url
-      ENV['DEVELOPMENT'] ? 'http://localhost:3000' : 'https://jnadeau.ca'
-    end
-
-    def latex_image_url(content)
-      # Weird encodings happen if we don't escape
-      # The Server also expects this escaped
-      content = content.strip.gsub(/\\\[/, '').gsub(/\\\]/, '') # Strip of surrounding \[ \]
-      body = { latex: CGI.escape(content.strip) }
-      uri = URI("#{url}/diatex/latex")
-      fetch_response(uri, body)
-    end
-
-    def diagram_image_url(content)
-      body = { diagram: content }
-      uri = URI("#{url}/diatex/diagram")
-      fetch_response(uri, body)
-    end
-
-    def fetch_response(uri, body)
-      http = Net::HTTP.new(uri.host, uri.port)
-      http.use_ssl = uri.port == 443
-      request = Net::HTTP::Get.new(uri.request_uri, 'Content-Type' => 'application/json')
-      request.basic_auth('diatex', ENV['DIATEX_PASSWORD'])
-      request.body = body.to_json
-      response = http.request(request)
-
-      # Parse the response
-      parsed = JSON.parse(response.body)
-      if parsed['error']
-        puts parsed['error']
-        puts parsed['output']
-        return nil
-      else
-        parsed['url']
-      end
-    end
-
-    def replacement_text(match, content, type, local: false)
+    def replacement_text(match, content, type)
       url = nil
       height = nil
       width = nil
 
       case type
       when 'latex'
-        url = latex_image_url(content) unless local
-        height = "75px"
+        raise 'not supported'
       when 'diagram', 'mermaid'
-        url = diagram_image_url(content) unless local
+        url = diagram_image_url(content)
         width = "100%"
       end
       raise 'Error from upstream' if !local && (url.nil? || url == '')
@@ -110,6 +79,42 @@ module Diatex
         "\n<!---\n#{match.strip.gsub('-->', '-\->')}\n--->\n",
         "<img src='#{url}' alt='#{type} image' #{image_modifiers}>\n"
       ].join
+    end
+
+    def diagram_image_url(content)
+      svg_string = nil
+      Tempfile.new do |file|
+        Charts.render_chart(content, file.path + ".svg")
+        svg_string = File.read(file.path + ".svg")
+      end
+
+      url = nil
+      Tempfile.new do |file|
+        img = Magick::Image.from_blob(svg_string) {
+          self.format = 'SVG'
+          self.background_color = 'transparent'
+        }
+        img.write(file.path + ".png")
+        url = upload_image(file.path + ".png")
+      end
+
+      url
+    end
+
+    def upload_image(file_path)
+      path = "images/website/#{file_path}"
+      github.create_contents(
+        CONFIG[:github_repo],
+        path,
+        "Adding Image #{path}",
+        branch: "gh-pages",
+        file: image_path
+      )
+      CONFIG[:git_repo_url] + path
+    end
+
+    def github
+      @github ||= Octokit::Client.new(access_token: CONFIG[:github_token]) 
     end
   end
 end

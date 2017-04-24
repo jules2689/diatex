@@ -1,3 +1,12 @@
+GIT
+  remote: https://github.com/jules2689/charts.git
+  revision: e15e235ee05cc3503086fe3f430a33e2af084e06
+  specs:
+    charts (0.0.1)
+      ruby-graphviz
+      ttfunk
+      victor (= 0.2.1)
+
 GEM
   remote: https://rubygems.org/
   specs:
@@ -13,19 +22,25 @@ GEM
     octokit (4.2.0)
       sawyer (~> 0.6.0, >= 0.5.3)
     phantomjs (2.1.1.0)
+    rmagick (2.16.0)
+    ruby-graphviz (1.2.3)
     sawyer (0.6.0)
       addressable (~> 2.3.5)
       faraday (~> 0.8, < 0.10)
+    ttfunk (1.5.1)
+    victor (0.2.1)
 
 PLATFORMS
   ruby
 
 DEPENDENCIES
   byebug
+  charts!
   minitest (~> 5.0)
   mocha
   octokit
   phantomjs
+  rmagick
 
 BUNDLED WITH
-   1.14.5
+   1.15.0.pre.2
