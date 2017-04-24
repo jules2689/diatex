@@ -2,6 +2,7 @@ require 'tempfile'
 require 'charts'
 require "RMagick"
 require 'octokit'
+require 'calculus'
 
 require 'cgi'
 require 'digest/md5'
