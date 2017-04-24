@@ -107,7 +107,7 @@ module Diatex
           self.format = 'PNG'
         end
         File.write(file.path, image)
-        url = upload_image(file.path)
+        url = upload_image(file.path, content)
       ensure
          file.close
          file.unlink
@@ -121,7 +121,7 @@ module Diatex
       begin
         exp = Calculus::Expression.new(content, parse: false)
         FileUtils.mv(exp.to_png, file.path)
-        url = upload_image(file.path)
+        url = upload_image(file.path, content)
       ensure
          file.close
          file.unlink
