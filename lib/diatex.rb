@@ -1,9 +1,7 @@
-require 'digest'
-require 'net/http'
-require 'cgi'
-require 'json'
+require 'tempfile'
 require 'charts'
 require "RMagick"
+require 'octokit'
 
 module Diatex
   REGEX = /
@@ -68,7 +66,7 @@ module Diatex
         url = diagram_image_url(content)
         width = "100%"
       end
-      raise 'Error from upstream' if !local && (url.nil? || url == '')
+      raise 'Error from upstream' if (url.nil? || url == '')
 
       # The replacement text will be HTML commented blocks, followed by a markdown image
       image_modifiers = {
@@ -83,18 +81,23 @@ module Diatex
 
     def diagram_image_url(content)
       svg_string = nil
-      Tempfile.new do |file|
-        Charts.render_chart(content, file.path + ".svg")
+      Tempfile.open do |file|
+        x = Charts.render_chart(content, file.path + ".svg")
         svg_string = File.read(file.path + ".svg")
       end
 
+      puts svg_string
+
       url = nil
-      Tempfile.new do |file|
-        img = Magick::Image.from_blob(svg_string) {
+      Tempfile.open do |file|
+        img = Magick::Image.from_blob(svg_string) do
           self.format = 'SVG'
           self.background_color = 'transparent'
-        }
-        img.write(file.path + ".png")
+        end
+        image = img.first.to_blob do
+          self.format = 'PNG'
+        end
+        File.write(file.path + ".png", image)
         url = upload_image(file.path + ".png")
       end
 
@@ -102,32 +105,19 @@ module Diatex
     end
 
     def upload_image(file_path)
-      path = "images/website/#{file_path}"
+      path = "images/website/#{File.basename(file_path)}"
       github.create_contents(
         CONFIG[:github_repo],
         path,
         "Adding Image #{path}",
         branch: "gh-pages",
-        file: image_path
+        file: file_path
       )
       CONFIG[:git_repo_url] + path
     end
 
     def github
-      @github ||= Octokit::Client.new(bearer_token: github_token) 
-    end
-
-    def github_token
-      private_pem = CONFIG[:github_token]
-      private_key = OpenSSL::PKey::RSA.new(private_pem)
-
-      payload = {}.tap do |opts|
-        opts[:iat] = Time.now.to_i           # Issued at time.
-        opts[:exp] = opts[:iat] + 600        # JWT expiration time is 10 minutes from issued time.
-        opts[:iss] = test_github_integration # Integration's GitHub identifier.
-      end
-
-      JWT.encode(payload, private_key, 'RS256')
+      @github ||= Octokit::Client.new(access_token: CONFIG[:github_token]) 
     end
   end
 end

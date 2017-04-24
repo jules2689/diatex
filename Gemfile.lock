@@ -1,6 +1,6 @@
 GIT
   remote: https://github.com/jules2689/charts.git
-  revision: e15e235ee05cc3503086fe3f430a33e2af084e06
+  revision: bc5ed66a829371737008d00f0e0c32b00c827c19
   specs:
     charts (0.0.1)
       ruby-graphviz
