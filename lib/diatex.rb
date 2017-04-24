@@ -3,6 +3,10 @@ require 'charts'
 require "RMagick"
 require 'octokit'
 
+require 'cgi'
+require 'digest/md5'
+require 'net/http'
+
 module Diatex
   REGEX = /
     ^(?<!<!---\n)                         # Make sure it's not a comment
@@ -61,7 +65,8 @@ module Diatex
 
       case type
       when 'latex'
-        raise 'not supported'
+        url = latex_image_url(content)
+        height = "75px"
       when 'diagram', 'mermaid'
         url = diagram_image_url(content)
         width = "100%"
@@ -91,7 +96,7 @@ module Diatex
       end
 
       url = nil
-      file = Tempfile.new('svg_string')
+      file = Tempfile.new('png')
       begin
         img = Magick::Image.from_blob(svg_string) do
           self.format = 'SVG'
@@ -100,17 +105,39 @@ module Diatex
         image = img.first.to_blob do
           self.format = 'PNG'
         end
-        File.write(file.path + ".png", image)
-        url = upload_image(file.path + ".png")
+        File.write(file.path, image)
+        url = upload_image(file.path)
       ensure
          file.close
-         file.unlink   # deletes the temp file
+         file.unlink
       end
       url
     end
 
-    def upload_image(file_path)
-      path = "images/website/#{File.basename(file_path)}"
+    def latex_image_url(content)
+      url = nil
+      file = Tempfile.new('png')
+      begin
+        exp = Calculus::Expression.new(content, parse: false)
+        FileUtils.mv(exp.to_png, file.path)
+        url = upload_image(file.path)
+      ensure
+         file.close
+         file.unlink
+      end
+      url
+    end
+
+    def content_uid(content)
+      latex = CGI.unescape(content)
+      Digest::MD5.hexdigest(latex)
+    end
+
+    def upload_image(file_path, content)
+      path = "images/latex/#{content_uid(content)}.png"
+      url = CONFIG[:git_repo_url] + path
+      return url if exists?(url)
+
       github.create_contents(
         CONFIG[:github_repo],
         path,
@@ -118,7 +145,11 @@ module Diatex
         branch: "gh-pages",
         file: file_path
       )
-      CONFIG[:git_repo_url] + path
+    end
+
+    def exists?(url)
+      res = Net::HTTP.get_response(URI(url))
+      res.code == '200'
     end
 
     def github
