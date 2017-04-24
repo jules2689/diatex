@@ -146,6 +146,7 @@ module Diatex
         branch: "gh-pages",
         file: file_path
       )
+      url
     end
 
     def exists?(url)
